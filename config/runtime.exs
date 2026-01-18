@@ -33,3 +33,17 @@ if chains_env = System.get_env("CHAINS") do
 
   config :elixir_index, rpc_endpoints: rpc_endpoints
 end
+
+# Sourcify Configuration
+# Format: SOURCIFY_PROXY_URLS="https://proxy1.workers.dev,https://proxy2.workers.dev"
+config :elixir_index, ElixirIndex.Sourcify.Client,
+  proxy_urls:
+    case System.get_env("SOURCIFY_PROXY_URLS") do
+      nil -> []
+      "" -> []
+      urls -> String.split(urls, ",", trim: true) |> Enum.map(&String.trim/1)
+    end,
+  direct_url: System.get_env("SOURCIFY_DIRECT_URL", "https://sourcify.dev/server"),
+  timeout: String.to_integer(System.get_env("SOURCIFY_TIMEOUT", "30000")),
+  max_retries: String.to_integer(System.get_env("SOURCIFY_MAX_RETRIES", "3")),
+  cache_ttl: String.to_integer(System.get_env("SOURCIFY_CACHE_TTL", "86400000"))

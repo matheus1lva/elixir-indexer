@@ -9,6 +9,7 @@ defmodule ElixirIndex.Application do
   def start(_type, _args) do
     children = [
       {Ch, Application.get_env(:ch, :default)},
+      ElixirIndex.Sourcify.Client,
       ElixirIndex.Chain.Supervisor
     ]
 

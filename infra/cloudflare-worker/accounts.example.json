@@ -1,0 +1,14 @@
+{
+  "accounts": [
+    {
+      "account_id": "your-first-account-id",
+      "api_token": "your-first-api-token",
+      "comment": "Account 1 - Personal"
+    },
+    {
+      "account_id": "your-second-account-id",
+      "api_token": "your-second-api-token",
+      "comment": "Account 2 - Work"
+    }
+  ]
+}

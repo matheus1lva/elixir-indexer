@@ -1,17 +1,87 @@
 defmodule ElixirIndex.Sourcify do
   @moduledoc """
   Client for Sourcify API to fetch contract ABIs.
+
+  Supports proxy rotation via Cloudflare Workers to avoid rate limits.
+  Configure proxies via SOURCIFY_PROXY_URLS environment variable.
+
+  ## Configuration
+
+      # In .env or runtime config
+      SOURCIFY_PROXY_URLS=https://proxy1.workers.dev,https://proxy2.workers.dev
+
+  The client will:
+  1. Try local Sourcify first (if configured)
+  2. Fall back to public Sourcify via rotating proxies
+  3. Retry with exponential backoff on rate limits
   """
+  use Agent
   require Logger
+
+  @default_public_url "https://sourcify.dev/server"
+
+  def start_link(_opts) do
+    proxy_urls = parse_proxy_urls(System.get_env("SOURCIFY_PROXY_URLS"))
+    Agent.start_link(fn -> %{proxy_urls: proxy_urls, current_index: 0} end, name: __MODULE__)
+  end
+
+  def child_spec(opts) do
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, [opts]},
+      type: :worker,
+      restart: :permanent
+    }
+  end
+
+  defp parse_proxy_urls(nil), do: []
+  defp parse_proxy_urls(""), do: []
+
+  defp parse_proxy_urls(urls_string) do
+    urls_string
+    |> String.split(",", trim: true)
+    |> Enum.map(&String.trim/1)
+    |> Enum.filter(&(&1 != ""))
+  end
 
   def client(url) do
     Req.new(base_url: url)
   end
 
+  @doc """
+  Get the next proxy URL using round-robin rotation.
+  Falls back to direct public URL if no proxies configured.
+  """
+  def get_next_public_url do
+    Agent.get_and_update(__MODULE__, fn state ->
+      case state.proxy_urls do
+        [] ->
+          {@default_public_url, state}
+
+        proxies ->
+          index = rem(state.current_index, length(proxies))
+          url = Enum.at(proxies, index)
+          {url, %{state | current_index: index + 1}}
+      end
+    end)
+  end
+
+  @doc """
+  Returns stats about proxy configuration.
+  """
+  def stats do
+    Agent.get(__MODULE__, fn state ->
+      %{
+        proxy_count: length(state.proxy_urls),
+        proxy_urls: state.proxy_urls,
+        current_index: state.current_index
+      }
+    end)
+  end
+
   def get_abi(chain_id, address) do
     config = Application.get_env(:elixir_index, :chain)
     local_url = config[:sourcify_url] || "http://localhost:5555"
-    public_url = "https://sourcify.dev/server"
 
     # Try local first
     case fetch_abi(local_url, chain_id, address) do
@@ -19,9 +89,9 @@ defmodule ElixirIndex.Sourcify do
         {:ok, abi}
 
       {:error, :not_found} ->
-        # Fallback to public with retry
+        # Fallback to public with retry and proxy rotation
         Logger.info("ABI not found locally for #{address}, trying public Sourcify...")
-        fetch_abi_with_retry(public_url, chain_id, address)
+        fetch_abi_with_retry(chain_id, address)
 
       error ->
         error
@@ -57,7 +127,10 @@ defmodule ElixirIndex.Sourcify do
     end
   end
 
-  defp fetch_abi_with_retry(base_url, chain_id, address, attempt \\ 1) do
+  defp fetch_abi_with_retry(chain_id, address, attempt \\ 1) do
+    # Get next proxy URL (rotates through configured proxies)
+    base_url = get_next_public_url()
+
     case fetch_abi(base_url, chain_id, address) do
       {:ok, abi} ->
         {:ok, abi}
@@ -71,17 +144,28 @@ defmodule ElixirIndex.Sourcify do
           sleep_ms = wait_s * 1000 + :rand.uniform(1000)
 
           Logger.warning(
-            "Rate limited on public Sourcify for #{address}. Sleeping #{sleep_ms}ms (Attempt #{attempt})"
+            "Rate limited on Sourcify (#{base_url}) for #{address}. " <>
+              "Rotating proxy and sleeping #{sleep_ms}ms (Attempt #{attempt})"
           )
 
           Process.sleep(sleep_ms)
-          fetch_abi_with_retry(base_url, chain_id, address, attempt + 1)
+          # Next retry will use the next proxy in rotation
+          fetch_abi_with_retry(chain_id, address, attempt + 1)
         else
           {:error, :rate_limited_max_retries}
         end
 
-      other ->
-        other
+      {:error, reason} = error ->
+        if attempt <= 3 do
+          Logger.warning(
+            "Error fetching from #{base_url}: #{inspect(reason)}. Trying next proxy (Attempt #{attempt})"
+          )
+
+          # Try next proxy immediately for non-rate-limit errors
+          fetch_abi_with_retry(chain_id, address, attempt + 1)
+        else
+          error
+        end
     end
   end
 

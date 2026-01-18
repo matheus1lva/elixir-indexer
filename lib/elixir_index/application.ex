@@ -9,6 +9,7 @@ defmodule ElixirIndex.Application do
   def start(_type, _args) do
     children = [
       ElixirIndex.Repo,
+      ElixirIndex.Sourcify,
       ElixirIndex.Chain.Supervisor
     ]
 

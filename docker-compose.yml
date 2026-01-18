@@ -11,5 +11,48 @@ services:
     volumes:
       - clickhouse_data:/var/lib/clickhouse
 
+  sourcify:
+    image: ghcr.io/ethereum/sourcify/server:latest
+    ports:
+      - "5555:5555"
+    environment:
+      - SOURCIFY_POSTGRES_HOST=sourcify-db
+      - SOURCIFY_POSTGRES_DB=sourcify
+      - SOURCIFY_POSTGRES_USER=sourcify
+      - SOURCIFY_POSTGRES_PASSWORD=sourcify
+      - SOURCIFY_SERVER_PORT=5555
+      - SOURCIFY_SERVER_PORT=5555
+    volumes:
+      - ./sourcify-chains.json:/home/app/services/server/dist/sourcify-chains.json
+      - ./sourcify-repository:/tmp/sourcify/repository
+      - ./sourcify-repositoryV2:/tmp/sourcify/repositoryV2
+    depends_on:
+      - sourcify-db
+
+  sourcify-monitor:
+    image: ghcr.io/ethereum/sourcify/monitor:latest
+    environment:
+      - SOURCIFY_POSTGRES_HOST=sourcify-db
+      - SOURCIFY_POSTGRES_DB=sourcify
+      - SOURCIFY_POSTGRES_USER=sourcify
+      - SOURCIFY_POSTGRES_PASSWORD=sourcify
+    volumes:
+      - ./sourcify-chains.json:/home/app/services/monitor/dist/sourcify-chains.json
+    depends_on:
+      - sourcify-db
+      - sourcify
+
+  sourcify-db:
+    image: postgres:14
+    environment:
+      - POSTGRES_DB=sourcify
+      - POSTGRES_USER=sourcify
+      - POSTGRES_PASSWORD=sourcify
+    ports:
+      - "5434:5432"
+    volumes:
+      - sourcify_data:/var/lib/postgresql/data
+
 volumes:
   clickhouse_data:
+  sourcify_data:

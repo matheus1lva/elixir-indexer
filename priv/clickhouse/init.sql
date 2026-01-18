@@ -16,6 +16,16 @@ CREATE TABLE IF NOT EXISTS elixir_index.transactions (
 ) ENGINE = MergeTree()
 ORDER BY (chain_id, block_number, hash);
 
+
+-- ABIs Table
+CREATE TABLE IF NOT EXISTS elixir_index.abis (
+    chain_id UInt32,
+    address FixedString(42),
+    abi String, -- JSON string
+    created_at DateTime DEFAULT now()
+) ENGINE = MergeTree()
+ORDER BY (chain_id, address);
+
 -- Events Table
 CREATE TABLE IF NOT EXISTS elixir_index.events (
     chain_id UInt32,

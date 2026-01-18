@@ -8,7 +8,7 @@ defmodule ElixirIndex.Application do
   @impl true
   def start(_type, _args) do
     children = [
-      {Ch, Application.get_env(:ch, :default)},
+      ElixirIndex.Repo,
       ElixirIndex.Chain.Supervisor
     ]
 

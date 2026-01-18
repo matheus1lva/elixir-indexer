@@ -2,16 +2,16 @@ import Config
 
 config :elixir_index,
   rpc_endpoints: %{
-    # Example: chain_id => url
-    1 => System.get_env("ETH_RPC_URL", "https://rpc.ankr.com/eth")
+    1 => "https://eth.llamarpc.com",
+    56 => "https://binance.llamarpc.com"
   }
 
-config :ch,
-  default: [
-    scheme: "http",
-    hostname: System.get_env("CLICKHOUSE_HOST", "localhost"),
-    port: System.get_env("CLICKHOUSE_PORT", "8123") |> String.to_integer(),
-    database: System.get_env("CLICKHOUSE_DATABASE", "default")
-  ]
+config :elixir_index, ElixirIndex.Repo,
+  database: System.get_env("CLICKHOUSE_DATABASE", "elixir_index"),
+  username: System.get_env("CLICKHOUSE_USER", "default"),
+  password: System.get_env("CLICKHOUSE_PASSWORD", ""),
+  hostname: System.get_env("CLICKHOUSE_HOST", "localhost"),
+  port: String.to_integer(System.get_env("CLICKHOUSE_PORT", "8123")),
+  scheme: "http"
 
-import_config "#{config_env()}.exs"
+config :elixir_index, ecto_repos: [ElixirIndex.Repo]

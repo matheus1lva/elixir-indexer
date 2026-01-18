@@ -1,0 +1,12 @@
+{
+  "1": {
+    "sourcifyName": "Ethereum Mainnet",
+    "supported": true,
+    "rpc": [
+      {
+        "type": "FetchRequest",
+        "url": "https://lb.drpc.live/ethereum/At5BxPAjmU3_qZH5ccTkHK4U_bogq40R8LkVQrxF2MGT"
+      }
+    ]
+  }
+}

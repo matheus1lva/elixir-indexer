@@ -25,7 +25,11 @@ defmodule ElixirIndex.MixProject do
       {:broadway, "~> 1.0"},
       {:req, "~> 0.5.0"},
       {:ch, "~> 0.3.0"},
-      {:jason, "~> 1.4"}
+      {:jason, "~> 1.4"},
+      {:abi, "~> 0.1"},
+      {:ecto_ch, "~> 0.3"},
+      {:ecto_sql, "~> 3.0"},
+      {:dotenvy, "~> 0.8"}
     ]
   end
 end
